@@ -1,0 +1,44 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.4'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+// build.gradle
+dependencies {
+	// Spring Web: Controller. REST API 등 웹 기능 지원
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	
+	// Spring Data JPA: 데이터베이스 연동을 쉽게 해주는 기술
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	
+	// MySQL Driver: MySQL 데이터베이스 연결
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	
+	// Lombok: Getter, Setter, 생성자 등을 어노테이션으로 자동 생성하여 코드 간소화
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	
+	// (선택) Validation: DTO 유효성 검사
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
