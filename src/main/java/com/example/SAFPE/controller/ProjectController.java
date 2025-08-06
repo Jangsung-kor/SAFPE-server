@@ -3,7 +3,9 @@ package com.example.SAFPE.controller;
 import java.io.IOException;
 import java.util.List;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,14 +47,43 @@ public class ProjectController {
 	}
 
 	@PutMapping("/{projectId}")
-	public ResponseEntity<ProjectDto> updateProject(@PathVariable Long projectId,
+	public ResponseEntity<ProjectDto> updateProject(@PathVariable("projectId") Long projectId,
 			@RequestBody UpdateProjectRequest request) {
 		return ResponseEntity.ok(projectService.updateProject(projectId, request));
 	}
 
 	@PostMapping("/{projectId}/background-image")
-	public ResponseEntity<ProjectDto> uploadBackgroundImage(@PathVariable Long projectId,
+	public ResponseEntity<ProjectDto> uploadBackgroundImage(@PathVariable("projectId") Long projectId,
 			@RequestParam("file") MultipartFile file) throws IOException {
 		return ResponseEntity.ok(projectService.uploadBackgroundImage(projectId, file));
+	}
+
+	@GetMapping("/{projectId}/export")
+	public ResponseEntity<byte[]> exportProject(@PathVariable("projectId") Long projectId,
+			@RequestParam(value = "format", defaultValue = "png") String format) {
+
+		try {
+			byte[] fileContent = projectService.exportProject(projectId, format);
+			String fileName = "floorplan-" + projectId + "." + format.toLowerCase();
+
+			MediaType mediaType;
+			if ("pdf".equalsIgnoreCase(format)) {
+				mediaType = MediaType.APPLICATION_PDF;
+			} else if ("png".equalsIgnoreCase(format)) {
+				mediaType = MediaType.IMAGE_PNG;
+			} else {
+				return ResponseEntity.badRequest().build();
+			}
+
+			return ResponseEntity.ok()
+					// 헤더는 브라우저가 파일을 다운로드 하도록 함
+					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment: filename=\"" + fileName + "\"")
+					.contentType(mediaType).body(fileContent);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return ResponseEntity.internalServerError().build();
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body(e.getMessage().getBytes());
+		}
 	}
 }

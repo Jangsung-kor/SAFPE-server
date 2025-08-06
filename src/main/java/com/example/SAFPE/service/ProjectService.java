@@ -1,20 +1,35 @@
 package com.example.SAFPE.service;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.SAFPE.dto.CreateProjectRequest;
+import com.example.SAFPE.dto.DoorDto;
 import com.example.SAFPE.dto.MetricsDto;
 import com.example.SAFPE.dto.PlanDataDto;
 import com.example.SAFPE.dto.PointDto;
 import com.example.SAFPE.dto.ProjectDto;
 import com.example.SAFPE.dto.UpdateProjectRequest;
 import com.example.SAFPE.dto.WallDto;
+import com.example.SAFPE.dto.WindowDto;
 import com.example.SAFPE.entity.Project;
 import com.example.SAFPE.exception.ResourceNotFoundException;
 import com.example.SAFPE.repository.ProjectRepository;
@@ -146,5 +161,147 @@ public class ProjectService {
 		project.setBackgroundImageUrl(fileDownloadUrl);
 
 		return convertToDto(project);
+	}
+
+	/**
+	 * 프로젝트를 지정된 포맷(png, pdf) 파일로 내보낸다.
+	 * 
+	 * @param projectId
+	 * @param format    'png' 또는 'pdf
+	 * @return
+	 * @throws IOException
+	 */
+	public byte[] exportProject(Long projectId, String format) throws IOException {
+		ProjectDto projectDto = getProjectById(projectId);
+		PlanDataDto planData = projectDto.getPlanData();
+
+		if ("png".equalsIgnoreCase(format)) {
+			return createImageFromPlan(planData, projectDto.getTitle());
+		} else if ("pdf".equalsIgnoreCase(format)) {
+			return createPdfFromPlanWithPdfBox(planData, projectDto.getTitle());
+		} else {
+			throw new IllegalArgumentException("Unsupported format: " + format);
+		}
+	}
+
+	// 평면도 데이터로 PNG 이미지를 생성한다.
+	private byte[] createImageFromPlan(PlanDataDto planData, String title) throws IOException {
+		int width = 1200; // 이미지 가로 크기
+		int height = 800; // 이미지 세로 크기
+		int padding = 50; // 여백
+
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g2d = image.createGraphics();
+
+		// 흰색 배경
+		g2d.setColor(Color.WHITE);
+		g2d.fillRect(0, 0, width, height);
+
+		// 제목
+		g2d.setColor(Color.BLACK);
+		g2d.setFont(new Font("SansSerif", Font.BOLD, 24));
+		g2d.drawString(title, padding, padding);
+
+		// 렌더링 품질 향상
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		// 여백을 고려해서 좌표 이동
+		g2d.translate(padding, padding + 20);
+
+		if (planData != null) {
+			// 벽 그리기
+			g2d.setStroke(new BasicStroke(5));
+			g2d.setColor(new Color(88, 101, 242)); // #5865f2
+			if (planData.getWalls() != null) {
+				for (WallDto wall : planData.getWalls()) {
+					g2d.drawLine((int) wall.getStart().getX(), (int) wall.getStart().getY(), (int) wall.getEnd().getX(),
+							(int) wall.getEnd().getY());
+				}
+			}
+
+			// 문 그리기
+			g2d.setColor(new Color(242, 163, 88)); // #f2a358
+			if (planData.getDoors() != null) {
+				for (DoorDto door : planData.getDoors()) {
+					g2d.fillRect((int) (door.getPosition().getX() - door.getWidth() / 2),
+							(int) (door.getPosition()).getY() - 10, (int) door.getWidth(), 20);
+				}
+			}
+
+			// 창문 그리기
+			g2d.setColor(new Color(88, 201, 242)); // #58c9f2
+			if (planData.getWindows() != null) {
+				for (WindowDto window : planData.getWindows()) {
+					g2d.fillRect((int) (window.getPosition().getX() - window.getWidth() / 2),
+							(int) window.getPosition().getY() - 5, (int) window.getWidth(), 10);
+				}
+			}
+		}
+
+		g2d.dispose();
+
+		// 이미지를 byte 배열로 변환
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ImageIO.write(image, "png", baos);
+		return baos.toByteArray();
+	}
+
+	// 평면도 데이터를 PDF 문서로 생성한다.
+	private byte[] createPdfFromPlanWithPdfBox(PlanDataDto planData, String title) throws IOException {
+		// try-with-resources 구문으로 PDDocumeent가 자동으로 닫히도록 함
+		try (PDDocument document = new PDDocument()) {
+			PDPage page = new PDPage(PDRectangle.A4);
+			document.addPage(page);
+
+			float yOffset = page.getMediaBox().getHeight() - 70; // PDF는 좌츨 하단이 (0,0)이므로 y좌표 변환을 위한 오프셋
+
+			// PDPageContentStream도 자동으로 닫힘
+			try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+				// 제목 추가 -> 한글 폰트 지원 안되는 문제로 제목 지원 안함
+//				contentStream.beginText();
+//				contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 24);
+//				contentStream.newLineAtOffset(50, yOffset + 20);
+//				contentStream.showText(title);
+//				contentStream.endText();
+
+				if (planData != null) {
+					// 벽 그리기
+					contentStream.setStrokingColor(new Color(88, 101, 242)); // #5865f2
+					contentStream.setLineWidth(5);
+					if (planData.getWalls() != null) {
+						for (WallDto wall : planData.getWalls()) {
+							contentStream.moveTo((float) wall.getStart().getX() + 50,
+									yOffset - (float) wall.getStart().getY());
+							contentStream.lineTo((float) wall.getEnd().getX() + 50,
+									yOffset - (float) wall.getEnd().getY());
+							contentStream.stroke();
+						}
+					}
+
+					// 문 그리기 (PDFBox에서는 setNonStrokingColor로 채우기 색상 지정해야함)
+					contentStream.setNonStrokingColor(new Color(242, 163, 88)); // #f2a358
+					if (planData.getDoors() != null) {
+						for (DoorDto door : planData.getDoors()) {
+							contentStream.addRect((float) (door.getPosition().getX() - door.getWidth() / 2) + 50,
+									yOffset - (float) door.getPosition().getY() - 10, (float) door.getWidth(), 20);
+							contentStream.fill();
+						}
+					}
+
+					// 창문 그리기
+					contentStream.setNonStrokingColor(new Color(88, 201, 242)); // #58c9f2
+					if (planData.getWindows() != null) {
+						for (WindowDto window : planData.getWindows()) {
+							contentStream.addRect((float) (window.getPosition().getX() - window.getWidth() / 2) + 50,
+									yOffset - (float) window.getPosition().getY() - 5, (float) window.getWidth(), 10);
+							contentStream.fill();
+						}
+					}
+				}
+			}
+
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			document.save(baos);
+			return baos.toByteArray();
+		}
 	}
 }

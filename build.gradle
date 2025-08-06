@@ -35,6 +35,10 @@ dependencies {
 	// (선택) Validation: DTO 유효성 검사
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	
+	// 상업적으로 사용해도 문제없는 Apache PDFBox 의존성 추가
+	implementation 'org.apache.pdfbox:pdfbox:3.0.2'
+	
+	// 아래 의존성은 왜 필요?
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
