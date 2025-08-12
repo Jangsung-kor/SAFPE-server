@@ -6,4 +6,5 @@ import lombok.Data;
 public class UpdateProjectRequest {
 	private String title;
 	private PlanDataDto planData;
+	private ScaleDto scale;
 }

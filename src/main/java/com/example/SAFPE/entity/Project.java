@@ -38,6 +38,12 @@ public class Project {
 	@Lob // Large Object: 긴 텍스트 데이터를 저장하기 위함
 	@Column(columnDefinition = "TEXT")
 	private String planData; // 프론트엔드의 PlanData 객체를 JSON 문자열로 저장
+	
+	@Column
+	private Double scaleRatio;
+	
+	@Column(length = 10)
+	private String scaleUnit;
 
 	@CreationTimestamp
 	private LocalDateTime createAt;

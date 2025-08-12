@@ -20,6 +20,8 @@ public class ProjectDto {
 	private String title;
 	private String backgroundImageUrl;
 	private PlanDataDto planData;
+	private Double scaleRatio;
+	private String scaleUnit;
 	private MetricsDto metrics;
 	private LocalDateTime createdAt;
 	private LocalDateTime updateAt;
