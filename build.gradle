@@ -38,9 +38,17 @@ dependencies {
 	// 상업적으로 사용해도 문제없는 Apache PDFBox 의존성 추가
 	implementation 'org.apache.pdfbox:pdfbox:3.0.2'
 	
-	// 아래 의존성은 왜 필요?
+	// 테스트
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	// Spring Security
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	
+	// JWT 라이브러리 (jjwt)
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 }
 
 tasks.named('test') {

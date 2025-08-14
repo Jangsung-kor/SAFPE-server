@@ -17,6 +17,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,8 +33,10 @@ import com.example.SAFPE.dto.UpdateProjectRequest;
 import com.example.SAFPE.dto.WallDto;
 import com.example.SAFPE.dto.WindowDto;
 import com.example.SAFPE.entity.Project;
+import com.example.SAFPE.entity.User;
 import com.example.SAFPE.exception.ResourceNotFoundException;
 import com.example.SAFPE.repository.ProjectRepository;
+import com.example.SAFPE.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -51,6 +54,14 @@ public class ProjectService {
 	private final ProjectRepository projectRepository;
 	private final FileStorageService fileStorageService;
 	private final ObjectMapper objectMapper; // JSON 변환을 위해 주입
+	private final UserRepository userRepository;
+
+	// 현재 로그인된 사용자를 가져오는 Helper 메소드
+	private User getCurrentUser() {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		return userRepository.findByUsername(username)
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	}
 
 	// Project 엔티티를 ProjectDto로 변환
 	private ProjectDto convertToDto(Project project) {
@@ -119,12 +130,17 @@ public class ProjectService {
 
 	// 프로젝트 목록 조회
 	public List<ProjectDto> getAllProjects() {
-		return projectRepository.findAllByOrderByIdDesc().stream().map(this::convertToDto).collect(Collectors.toList());
+		User currentUser = getCurrentUser();
+
+		return projectRepository.findByUserOrderByIdDesc(currentUser).stream().map(this::convertToDto)
+				.collect(Collectors.toList());
 	}
 
 	// 프로젝트 상세 조회
 	public ProjectDto getProjectById(Long id) {
-		Project project = projectRepository.findById(id)
+		User currentUser = getCurrentUser();
+
+		Project project = projectRepository.findByUserAndId(currentUser, id)
 				.orElseThrow(() -> new ResourceNotFoundException("project not found with id: " + id));
 
 		return convertToDto(project);
@@ -133,9 +149,11 @@ public class ProjectService {
 	// 새 프로젝트 생성
 	@Transactional
 	public ProjectDto createProject(CreateProjectRequest request) {
+		User currentUser = getCurrentUser();
+
 		// 초기 빈 데이터
 		String planData = "{\"walls\": [], \"doors\": [], \"windows\": []}";
-		Project project = Project.builder().title(request.getTitle()).planData(planData).build();
+		Project project = Project.builder().user(currentUser).title(request.getTitle()).planData(planData).build();
 
 		Project savedProject = projectRepository.save(project);
 		return convertToDto(savedProject);
@@ -144,7 +162,9 @@ public class ProjectService {
 	// 프로젝트 정보와 평면도 데이터 업데이트
 	@Transactional
 	public ProjectDto updateProject(Long id, UpdateProjectRequest request) {
-		Project project = projectRepository.findById(id)
+		User currentUser = getCurrentUser();
+
+		Project project = projectRepository.findByUserAndId(currentUser, id)
 				.orElseThrow(() -> new ResourceNotFoundException("Project not found with id" + id));
 
 		project.setTitle(request.getTitle());
