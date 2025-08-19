@@ -1,10 +1,13 @@
 package com.example.SAFPE.entity;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,8 +15,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,9 +41,26 @@ public class Project {
 	@Column(length = 255)
 	private String backgroundImageUrl;
 
-	@Lob // Large Object: 긴 텍스트 데이터를 저장하기 위함
-	@Column(columnDefinition = "TEXT")
-	private String planData; // 프론트엔드의 PlanData 객체를 JSON 문자열로 저장
+	/*
+	 * @Lob // Large Object: 긴 텍스트 데이터를 저장하기 위함
+	 * 
+	 * @Column(columnDefinition = "TEXT") private String planData; // 프론트엔드의
+	 * PlanData 객체를 JSON 문자열로 저장
+	 */
+
+	/*
+	 * cascade = CascadeType.ALL : project 테이블의 데이터가 삭제,수정되면 벽/문/창문도 함께 삭제,수정된다.
+	 * orphanRemoval = true : project에서 walls 리스트에서 특정 벽을 제거하면, DB에서도 해당 벽 레코드를
+	 * 삭제한다.(편리한 기능)
+	 */
+	@OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<Wall> walls = new ArrayList<>();
+
+	@OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<Door> doors = new ArrayList<>();
+
+	@OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<Window> windows = new ArrayList<>();
 
 	@Column
 	private Double scaleRatio;

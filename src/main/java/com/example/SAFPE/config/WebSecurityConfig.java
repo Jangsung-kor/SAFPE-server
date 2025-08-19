@@ -1,5 +1,7 @@
 package com.example.SAFPE.config;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,6 +31,8 @@ public class WebSecurityConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		// CORS 설정 활성화
+		http.cors(withDefaults());
 		http.csrf(AbstractHttpConfigurer::disable) // CSRF 비활성화
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 사용 안
 				.authorizeHttpRequests(

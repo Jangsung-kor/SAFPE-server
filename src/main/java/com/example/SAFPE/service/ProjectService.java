@@ -32,13 +32,15 @@ import com.example.SAFPE.dto.ScaleDto;
 import com.example.SAFPE.dto.UpdateProjectRequest;
 import com.example.SAFPE.dto.WallDto;
 import com.example.SAFPE.dto.WindowDto;
+import com.example.SAFPE.entity.Door;
+import com.example.SAFPE.entity.Point;
 import com.example.SAFPE.entity.Project;
 import com.example.SAFPE.entity.User;
+import com.example.SAFPE.entity.Wall;
+import com.example.SAFPE.entity.Window;
 import com.example.SAFPE.exception.ResourceNotFoundException;
 import com.example.SAFPE.repository.ProjectRepository;
 import com.example.SAFPE.repository.UserRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -53,7 +55,6 @@ public class ProjectService {
 
 	private final ProjectRepository projectRepository;
 	private final FileStorageService fileStorageService;
-	private final ObjectMapper objectMapper; // JSON 변환을 위해 주입
 	private final UserRepository userRepository;
 
 	// 현재 로그인된 사용자를 가져오는 Helper 메소드
@@ -65,15 +66,32 @@ public class ProjectService {
 
 	// Project 엔티티를 ProjectDto로 변환
 	private ProjectDto convertToDto(Project project) {
-		PlanDataDto planDataDto = null;
-		if (project.getPlanData() != null && !project.getPlanData().isEmpty()) {
-			try {
-				planDataDto = objectMapper.readValue(project.getPlanData(), PlanDataDto.class);
-			} catch (JsonProcessingException e) {
-				// 로그를 남기거나 예외 처리
-				e.printStackTrace();
-			}
-		}
+		// 엔티티 리스트를 DTO 리스트로 변환
+		List<WallDto> wallDtos = project.getWalls().stream().map(wall -> {
+			WallDto dto = new WallDto();
+			dto.setStart(new PointDto(wall.getStartPoint().getX(), wall.getStartPoint().getY()));
+			dto.setEnd(new PointDto(wall.getEndPoint().getX(), wall.getEndPoint().getY()));
+			return dto;
+		}).collect(Collectors.toList());
+
+		List<DoorDto> doorDtos = project.getDoors().stream().map(door -> {
+			DoorDto dto = new DoorDto();
+			dto.setPosition(new PointDto(door.getPosition().getX(), door.getPosition().getY()));
+			dto.setWidth(door.getWidth());
+			return dto;
+		}).collect(Collectors.toList());
+
+		List<WindowDto> windowDtos = project.getWindows().stream().map(window -> {
+			WindowDto dto = new WindowDto();
+			dto.setPosition(new PointDto(window.getPosition().getX(), window.getPosition().getY()));
+			dto.setWidth(window.getWidth());
+			return dto;
+		}).collect(Collectors.toList());
+
+		PlanDataDto planDataDto = new PlanDataDto();
+		planDataDto.setWalls(wallDtos);
+		planDataDto.setDoors(doorDtos);
+		planDataDto.setWindows(windowDtos);
 
 		// 계산된 메트릭스 추가
 		MetricsDto metrics = calculateMetrics(planDataDto, project.getScaleRatio(), project.getScaleUnit());
@@ -152,8 +170,10 @@ public class ProjectService {
 		User currentUser = getCurrentUser();
 
 		// 초기 빈 데이터
-		String planData = "{\"walls\": [], \"doors\": [], \"windows\": []}";
-		Project project = Project.builder().user(currentUser).title(request.getTitle()).planData(planData).build();
+		// String planData = "{\"walls\": [], \"doors\": [], \"windows\": []}";
+		// Project project =
+		// Project.builder().user(currentUser).title(request.getTitle()).planData(planData).build();
+		Project project = Project.builder().user(currentUser).title(request.getTitle()).build();
 
 		Project savedProject = projectRepository.save(project);
 		return convertToDto(savedProject);
@@ -167,21 +187,45 @@ public class ProjectService {
 		Project project = projectRepository.findByUserAndId(currentUser, id)
 				.orElseThrow(() -> new ResourceNotFoundException("Project not found with id" + id));
 
+		// 1. 프로젝트 메타데이터 업데이트
 		project.setTitle(request.getTitle());
 
-		// 스케일 정보 업데이트 로직 추가
+		// 스케일 정보 업데이트
 		if (request.getScale() != null && request.getScale().getPixelLength() > 0) {
 			ScaleDto scale = request.getScale();
 			project.setScaleRatio(scale.getRealLength() / scale.getPixelLength());
 			project.setScaleUnit(scale.getUnit());
 		}
 
-		try {
-			String planDataJson = objectMapper.writeValueAsString(request.getPlanData());
-			project.setPlanData(planDataJson);
-		} catch (JsonProcessingException e) {
-			// 적절한 예외 처리
-			throw new RuntimeException("Failed to seralize plan data", e);
+		// 2. 기존 평면도 요소들 모두 삭제
+		project.getWalls().clear();
+		project.getDoors().clear();
+		project.getWindows().clear();
+
+		// 3. 요청받은 DTO 데이터로 새로운 엔티티 객체들을 생성하여 추가
+		PlanDataDto planData = request.getPlanData();
+		if (planData.getWalls() != null) {
+			planData.getWalls().forEach(wallDto -> {
+				Wall wall = Wall.builder().startPoint(new Point(wallDto.getStart().getX(), wallDto.getStart().getY()))
+						.endPoint(new Point(wallDto.getEnd().getX(), wallDto.getEnd().getY())).project(project).build();
+				project.getWalls().add(wall);
+			});
+		}
+		if (planData.getDoors() != null) {
+			planData.getDoors().forEach(doorDto -> {
+				Door door = Door.builder()
+						.position(new Point(doorDto.getPosition().getX(), doorDto.getPosition().getY()))
+						.width(doorDto.getWidth()).project(project).build();
+				project.getDoors().add(door);
+			});
+		}
+		if (planData.getWindows() != null) {
+			planData.getWindows().forEach(windowDto -> {
+				Window window = Window.builder()
+						.position(new Point(windowDto.getPosition().getX(), windowDto.getPosition().getY()))
+						.width(windowDto.getWidth()).project(project).build();
+				project.getWindows().add(window);
+			});
 		}
 
 		Project savedProject = projectRepository.save(project);
