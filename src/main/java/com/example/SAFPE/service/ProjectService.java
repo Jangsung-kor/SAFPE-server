@@ -8,6 +8,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -67,26 +68,35 @@ public class ProjectService {
 	// Project 엔티티를 ProjectDto로 변환
 	private ProjectDto convertToDto(Project project) {
 		// 엔티티 리스트를 DTO 리스트로 변환
-		List<WallDto> wallDtos = project.getWalls().stream().map(wall -> {
-			WallDto dto = new WallDto();
-			dto.setStart(new PointDto(wall.getStartPoint().getX(), wall.getStartPoint().getY()));
-			dto.setEnd(new PointDto(wall.getEndPoint().getX(), wall.getEndPoint().getY()));
-			return dto;
-		}).collect(Collectors.toList());
+		List<WallDto> wallDtos = new ArrayList<>();
+		if (project.getWalls() != null && !project.getWalls().isEmpty()) {
+			wallDtos = project.getWalls().stream().map(wall -> {
+				WallDto dto = new WallDto();
+				dto.setStart(new PointDto(wall.getStartPoint().getX(), wall.getStartPoint().getY()));
+				dto.setEnd(new PointDto(wall.getEndPoint().getX(), wall.getEndPoint().getY()));
+				return dto;
+			}).collect(Collectors.toList());
+		}
 
-		List<DoorDto> doorDtos = project.getDoors().stream().map(door -> {
-			DoorDto dto = new DoorDto();
-			dto.setPosition(new PointDto(door.getPosition().getX(), door.getPosition().getY()));
-			dto.setWidth(door.getWidth());
-			return dto;
-		}).collect(Collectors.toList());
+		List<DoorDto> doorDtos = new ArrayList<>();
+		if (project.getDoors() != null && !project.getDoors().isEmpty()) {
+			doorDtos = project.getDoors().stream().map(door -> {
+				DoorDto dto = new DoorDto();
+				dto.setPosition(new PointDto(door.getPosition().getX(), door.getPosition().getY()));
+				dto.setWidth(door.getWidth());
+				return dto;
+			}).collect(Collectors.toList());
+		}
 
-		List<WindowDto> windowDtos = project.getWindows().stream().map(window -> {
-			WindowDto dto = new WindowDto();
-			dto.setPosition(new PointDto(window.getPosition().getX(), window.getPosition().getY()));
-			dto.setWidth(window.getWidth());
-			return dto;
-		}).collect(Collectors.toList());
+		List<WindowDto> windowDtos = new ArrayList<>();
+		if (project.getWindows() != null && !project.getWindows().isEmpty()) {
+			windowDtos = project.getWindows().stream().map(window -> {
+				WindowDto dto = new WindowDto();
+				dto.setPosition(new PointDto(window.getPosition().getX(), window.getPosition().getY()));
+				dto.setWidth(window.getWidth());
+				return dto;
+			}).collect(Collectors.toList());
+		}
 
 		PlanDataDto planDataDto = new PlanDataDto();
 		planDataDto.setWalls(wallDtos);
