@@ -77,4 +77,10 @@ public class Project {
 	@ManyToOne(fetch = FetchType.LAZY) // 지연 로딩으로 성능 최적화
 	@JoinColumn(name = "user_id") // 외래키 컬럼명 지정
 	private User user;
+
+	@Column(nullable = false)
+	private boolean isPublic = false; // 기본값은 비공개
+
+	@Column(unique = true)
+	private String shareId; // 공유를 위한 고유 ID
 }

@@ -35,11 +35,11 @@ public class WebSecurityConfig {
 		http.cors(withDefaults());
 		http.csrf(AbstractHttpConfigurer::disable) // CSRF 비활성화
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 사용 안
-				.authorizeHttpRequests(
-						auth -> auth.requestMatchers("/api/auth/**").permitAll().anyRequest().authenticated() // api/auth
-																												// 경로는
-																												// 인증 없이
-																												// 허용
+				.authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/**", "/api/share/**", "/uploads/**")
+						.permitAll().anyRequest().authenticated() // api/auth
+				// 경로는
+				// 인증 없이
+				// 허용
 				).addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
 						UsernamePasswordAuthenticationFilter.class);
 		return http.build();

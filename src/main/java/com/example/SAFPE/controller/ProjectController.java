@@ -86,4 +86,32 @@ public class ProjectController {
 			return ResponseEntity.badRequest().body(e.getMessage().getBytes());
 		}
 	}
+
+	/**
+	 * 공유 설정 변경
+	 * 
+	 * @author Jangsung
+	 * @param projectId
+	 * @param isPublic
+	 * @return
+	 * @create_At 2025.08.24
+	 */
+	@PutMapping("/api/projects/{projectId}/share")
+	public ResponseEntity<ProjectDto> updateShareSettings(@PathVariable("projectId") Long projectId,
+			@RequestParam boolean isPublic) {
+		return ResponseEntity.ok(projectService.updateShareSettings(projectId, isPublic));
+	}
+
+	/**
+	 * 공유 링크로 프로젝트 조회
+	 * 
+	 * @author Jangsung
+	 * @param shareId
+	 * @return
+	 * @create_At 2025.08.24
+	 */
+	@GetMapping("/api/share/{shareId}")
+	public ResponseEntity<ProjectDto> getSharedProject(@PathVariable("shareId") String shareId) {
+		return ResponseEntity.ok(projectService.getPublicProjectByShareId(shareId));
+	}
 }

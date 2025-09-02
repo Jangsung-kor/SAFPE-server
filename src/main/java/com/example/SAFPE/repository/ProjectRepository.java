@@ -20,4 +20,6 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
 	// 상세 정보 조회
 	Optional<Project> findByUserAndId(User user, Long id);
+
+	Optional<Project> findByShareIdAndIsPublicTrue(String shareId);
 }

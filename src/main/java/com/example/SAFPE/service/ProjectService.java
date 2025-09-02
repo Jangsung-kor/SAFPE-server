@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -397,5 +398,52 @@ public class ProjectService {
 			document.save(baos);
 			return baos.toByteArray();
 		}
+	}
+
+	/**
+	 * 프로젝트 공유 설정 변경
+	 * 
+	 * @author Jangsung
+	 * @param projectId
+	 * @param isPublic
+	 * @return
+	 * @create_At 2025.08.24
+	 */
+	@Transactional
+	public ProjectDto updateShareSettings(Long projectId, boolean isPublic) {
+		Project project = projectRepository.findById(projectId)
+				.orElseThrow(() -> new ResourceNotFoundException("Project not found"));
+
+		// ---중요: 자신의 프로젝트가 맞는지 권한 확인 로직
+		User currentUser = getCurrentUser();
+		if (!project.getUser().getId().equals(currentUser.getId())) {
+			throw new IllegalStateException("You do not have permission to modify this project.");
+		}
+
+		project.setPublic(isPublic);
+
+		if (isPublic && project.getShareId() == null) {
+			// 프로젝트를 처음 공개할 때, 고유한 ID 생성
+			project.setShareId(UUID.randomUUID().toString());
+		}
+		// 비공개로 전환해도 sharedId는 유지할 수 있다. (나중에 다시 공개할 때 같은 링크 사용 가능)
+		// 만약 비공개 시 링크를 만료시키려면 project.setShareId(null);로 설정
+
+		Project savedProject = projectRepository.save(project);
+		return convertToDto(savedProject);
+	}
+
+	/**
+	 * 공유 ID로 공개 프로젝트 조회 (인증 불필요)
+	 * 
+	 * @author Jangsungd
+	 * @param shareId
+	 * @return
+	 * @create_At 2025.08.24
+	 */
+	public ProjectDto getPublicProjectByShareId(String shareId) {
+		Project project = projectRepository.findByShareIdAndIsPublicTrue(shareId)
+				.orElseThrow(() -> new ResourceNotFoundException("Public project not found or access denied"));
+		return convertToDto(project);
 	}
 }
