@@ -25,4 +25,5 @@ public class ProjectDto {
 	private MetricsDto metrics;
 	private LocalDateTime createdAt;
 	private LocalDateTime updateAt;
+	private boolean isPublic;
 }

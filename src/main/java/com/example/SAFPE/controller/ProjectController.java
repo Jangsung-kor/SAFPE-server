@@ -96,9 +96,10 @@ public class ProjectController {
 	 * @return
 	 * @create_At 2025.08.24
 	 */
-	@PutMapping("/api/projects/{projectId}/share")
+	@PutMapping("/{projectId}/share")
+	//@GetMapping("/api/projects/{projectId}/share")
 	public ResponseEntity<ProjectDto> updateShareSettings(@PathVariable("projectId") Long projectId,
-			@RequestParam boolean isPublic) {
+			@RequestParam(value = "isPublic") boolean isPublic) {
 		return ResponseEntity.ok(projectService.updateShareSettings(projectId, isPublic));
 	}
 
