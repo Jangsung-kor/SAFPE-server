@@ -26,4 +26,5 @@ public class ProjectDto {
 	private LocalDateTime createdAt;
 	private LocalDateTime updateAt;
 	private boolean isPublic;
+	private String shareId;
 }

@@ -110,7 +110,8 @@ public class ProjectService {
 		return ProjectDto.builder().id(project.getId()).title(project.getTitle())
 				.backgroundImageUrl(project.getBackgroundImageUrl()).planData(planDataDto)
 				.scaleRatio(project.getScaleRatio()).scaleUnit(project.getScaleUnit()).metrics(metrics)
-				.createdAt(project.getCreateAt()).updateAt(project.getUpdateAt()).isPublic(project.isPublic()).build();
+				.createdAt(project.getCreateAt()).updateAt(project.getUpdateAt()).isPublic(project.isPublic())
+				.shareId(project.getShareId()).build();
 	}
 
 	// 길이와 면적 계산 로직

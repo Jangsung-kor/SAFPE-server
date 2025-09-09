@@ -97,22 +97,8 @@ public class ProjectController {
 	 * @create_At 2025.08.24
 	 */
 	@PutMapping("/{projectId}/share")
-	//@GetMapping("/api/projects/{projectId}/share")
 	public ResponseEntity<ProjectDto> updateShareSettings(@PathVariable("projectId") Long projectId,
 			@RequestParam(value = "isPublic") boolean isPublic) {
 		return ResponseEntity.ok(projectService.updateShareSettings(projectId, isPublic));
-	}
-
-	/**
-	 * 공유 링크로 프로젝트 조회
-	 * 
-	 * @author Jangsung
-	 * @param shareId
-	 * @return
-	 * @create_At 2025.08.24
-	 */
-	@GetMapping("/api/share/{shareId}")
-	public ResponseEntity<ProjectDto> getSharedProject(@PathVariable("shareId") String shareId) {
-		return ResponseEntity.ok(projectService.getPublicProjectByShareId(shareId));
 	}
 }
