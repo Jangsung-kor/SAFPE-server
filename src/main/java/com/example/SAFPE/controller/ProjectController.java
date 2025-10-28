@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.SAFPE.dto.CreateProjectRequest;
 import com.example.SAFPE.dto.ProjectDto;
 import com.example.SAFPE.dto.UpdateProjectRequest;
 import com.example.SAFPE.service.ProjectService;
@@ -40,10 +39,27 @@ public class ProjectController {
 		return ResponseEntity.ok(projectService.getProjectById(projectId));
 	}
 
-	@PostMapping
-	public ResponseEntity<ProjectDto> createProject(@RequestBody CreateProjectRequest request) {
-		ProjectDto createdProject = projectService.createProject(request);
-		return new ResponseEntity<>(createdProject, HttpStatus.CREATED);
+//	@Deprecated
+//	@PostMapping
+//	public ResponseEntity<ProjectDto> createProject(@RequestBody CreateProjectRequest request) {
+//		ProjectDto createdProject = projectService.createProject(request);
+//		return new ResponseEntity<>(createdProject, HttpStatus.CREATED);
+//	}
+
+	/**
+	 * 프로젝트를 생성함게 동시에 이미지 업로드
+	 * 
+	 * @param title
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 * @createAt 2025.10.28
+	 */
+	@PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+	public ResponseEntity<ProjectDto> createProjectWithImage(@RequestParam("title") String title,
+			@RequestParam("file") MultipartFile file) throws IOException {
+		ProjectDto createProject = projectService.createProjectWithImage(title, file);
+		return new ResponseEntity<>(createProject, HttpStatus.CREATED);
 	}
 
 	@PutMapping("/{projectId}")

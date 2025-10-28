@@ -19,9 +19,18 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.SAFPE.dto.CreateProjectRequest;
@@ -34,6 +43,7 @@ import com.example.SAFPE.dto.ScaleDto;
 import com.example.SAFPE.dto.UpdateProjectRequest;
 import com.example.SAFPE.dto.WallDto;
 import com.example.SAFPE.dto.WindowDto;
+import com.example.SAFPE.dto.ai.AiAnalysisResponse;
 import com.example.SAFPE.entity.Door;
 import com.example.SAFPE.entity.Point;
 import com.example.SAFPE.entity.Project;
@@ -43,6 +53,7 @@ import com.example.SAFPE.entity.Window;
 import com.example.SAFPE.exception.ResourceNotFoundException;
 import com.example.SAFPE.repository.ProjectRepository;
 import com.example.SAFPE.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -58,6 +69,14 @@ public class ProjectService {
 	private final ProjectRepository projectRepository;
 	private final FileStorageService fileStorageService;
 	private final UserRepository userRepository;
+
+	// Python 서버와 통신하기 위한 RestTemplate
+	private final RestTemplate restTemplate = new RestTemplate();
+
+	@Value("${ai.server.url}") // application.yml에서 AI 서버 주소 주입
+	private String aiServerUrl;
+
+	private final ObjectMapper objectMapper;
 
 	// 현재 로그인된 사용자를 가져오는 Helper 메소드
 	private User getCurrentUser() {
@@ -177,6 +196,7 @@ public class ProjectService {
 	}
 
 	// 새 프로젝트 생성
+	@Deprecated
 	@Transactional
 	public ProjectDto createProject(CreateProjectRequest request) {
 		User currentUser = getCurrentUser();
@@ -186,6 +206,73 @@ public class ProjectService {
 		// Project project =
 		// Project.builder().user(currentUser).title(request.getTitle()).planData(planData).build();
 		Project project = Project.builder().user(currentUser).title(request.getTitle()).build();
+
+		Project savedProject = projectRepository.save(project);
+		return convertToDto(savedProject);
+	}
+
+	/**
+	 * 새 프로젝트 생성과 동시에 이미지 업로드
+	 * 
+	 * @param title
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 * @createAt 2025.10.28
+	 */
+	@Transactional
+	public ProjectDto createProjectWithImage(String title, MultipartFile file) throws IOException {
+		// -- AI 서버로 이미지 분석 요청
+		AiAnalysisResponse aiResponse = null;
+
+		// AI 서버로 이미지 분석 요청 보내기
+		try {
+			// 1. 요청 헤더 설정
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+			// 2. 요청 바디 구성
+			MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+			body.add("file", new ByteArrayResource(file.getBytes()) {
+				@Override
+				public String getFilename() {
+					return file.getOriginalFilename();
+				}
+			});
+
+			// 3. HTTP 요청 엔티티 생성
+			HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+			// 4. RestTemplate을 사용해서 Python 서버에 POST 요청
+			ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl + "/analyze", requestEntity,
+					String.class);
+
+			// 5. 응답 출력
+			aiResponse = objectMapper.readValue(response.getBody(), AiAnalysisResponse.class);
+
+		} catch (Exception e) {
+			System.err.println("Failed to connect to AI server: " + e.getMessage());
+		}
+
+		// 파일 저장
+		String fileName = fileStorageService.storeFile(file);
+		// 웹에서 접근 가능한 경로로 만들어 저장
+		String fileDownloadUrl = "/uploads/" + fileName;
+
+		// 새 프로젝트 생성
+		User currentUser = this.getCurrentUser();
+		Project project = Project.builder().title(title).user(currentUser).backgroundImageUrl(fileDownloadUrl).build();
+
+		project.setBackgroundImageUrl(fileDownloadUrl);
+
+		// AI 분석 결과를 초기 평면도 데이터로 설정
+		if (aiResponse != null && aiResponse.getDetectedLines() != null) {
+			aiResponse.getDetectedLines().forEach(wallDto -> {
+				Wall wall = Wall.builder().startPoint(new Point(wallDto.getStart().getX(), wallDto.getStart().getY()))
+						.endPoint(new Point(wallDto.getEnd().getX(), wallDto.getEnd().getY())).project(project).build();
+				project.getWalls().add(wall);
+			});
+		}
 
 		Project savedProject = projectRepository.save(project);
 		return convertToDto(savedProject);
@@ -250,13 +337,56 @@ public class ProjectService {
 		Project project = projectRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
+		// -- AI 서버로 이미지 분석 요청
+		AiAnalysisResponse aiResponse = null;
+
+		// AI 서버로 이미지 분석 요청 보내기
+		try {
+			// 1. 요청 헤더 설정
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+			// 2. 요청 바디 구성
+			MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+			body.add("file", new ByteArrayResource(file.getBytes()) {
+				@Override
+				public String getFilename() {
+					return file.getOriginalFilename();
+				}
+			});
+
+			// 3. HTTP 요청 엔티티 생성
+			HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+			// 4. RestTemplate을 사용해서 Python 서버에 POST 요청
+			ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl + "/analyze", requestEntity,
+					String.class);
+
+			// 5. 응답 출력
+			aiResponse = objectMapper.readValue(response.getBody(), AiAnalysisResponse.class);
+
+		} catch (Exception e) {
+			System.err.println("Failed to connect to AI server: " + e.getMessage());
+		}
+
+		// 파일 저장
 		String fileName = fileStorageService.storeFile(file);
 		// 웹에서 접근 가능한 경로로 만들어 저장
 		String fileDownloadUrl = "/uploads/" + fileName;
 
 		project.setBackgroundImageUrl(fileDownloadUrl);
 
-		return convertToDto(project);
+		// AI 분석 결과를 초기 평면도 데이터로 설정
+		if (aiResponse != null && aiResponse.getDetectedLines() != null) {
+			aiResponse.getDetectedLines().forEach(wallDto -> {
+				Wall wall = Wall.builder().startPoint(new Point(wallDto.getStart().getX(), wallDto.getStart().getY()))
+						.endPoint(new Point(wallDto.getEnd().getX(), wallDto.getEnd().getY())).project(project).build();
+				project.getWalls().add(wall);
+			});
+		}
+
+		Project savedProject = projectRepository.save(project);
+		return convertToDto(savedProject);
 	}
 
 	/**
